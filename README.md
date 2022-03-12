@@ -10,6 +10,12 @@
 [![Bitcoin badge][bitcoin-badge]][bitcoin]
 # BittyTax
 
+##
+- newly added ADALITE
+- install updated version via `pip install -e .` (run in folder with setup.py)
+- `bittytax_conv *.csv`
+- `bittytax BittyTax_Records.xlsx -ty 2021 --taxrules UK_INDIVIDUAL`
+
 ## Overview
 
 BittyTax is a collection of command-line tools to help you calculate your cryptoasset taxes in the UK.
