@@ -63,7 +63,7 @@ def parse_kraken_deposits_withdrawals(trade_ids, parser, data_row):
     data_row.parsed = True
     row_dict = data_row.row_dict
     time = row_dict['time']
-    data_row.timestamp = DataParser.parse_timestamp(time, dayfirst=True)
+    data_row.timestamp = DataParser.parse_timestamp(time, dayfirst=False)
     transaction_type = row_dict['type']
     tx_id = row_dict['txid']
     ref_id = row_dict['refid']
