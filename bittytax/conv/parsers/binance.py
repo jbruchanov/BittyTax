@@ -10,8 +10,7 @@ from colorama import Fore
 from ...config import config
 from ..out_record import TransactionOutRecord
 from ..dataparser import DataParser
-from ..exceptions import UnexpectedTypeError, UnexpectedTradingPairError, \
-                         DataFilenameError
+from ..exceptions import UnexpectedTypeError, UnexpectedTradingPairError, DataFilenameError, MissingComponentError
 
 WALLET = "Binance"
 
@@ -21,6 +20,7 @@ QUOTE_ASSETS = ['AUD', 'BIDR', 'BKRW', 'BNB', 'BRL', 'BTC', 'BUSD', 'BVND', 'DAI
                 'ZAR']
 
 BASE_ASSETS = ['1INCH', '1INCHDOWN', '1INCHUP']
+
 
 def parse_binance_trades(data_row, parser, **_kwargs):
     row_dict = data_row.row_dict
@@ -54,6 +54,7 @@ def parse_binance_trades(data_row, parser, **_kwargs):
     else:
         raise UnexpectedTypeError(parser.in_header.index('Type'), 'Type', row_dict['Type'])
 
+
 def parse_binance_convert(data_row, parser, **_kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(row_dict['Date'])
@@ -73,6 +74,7 @@ def parse_binance_convert(data_row, parser, **_kwargs):
                                              sell_quantity=row_dict['Sell'].split(' ')[0],
                                              sell_asset=row_dict['Sell'].split(' ')[1],
                                              wallet=WALLET)
+
 
 def parse_binance_trades_statement(data_row, parser, **_kwargs):
     row_dict = data_row.row_dict
@@ -108,12 +110,14 @@ def parse_binance_trades_statement(data_row, parser, **_kwargs):
     else:
         raise UnexpectedTypeError(parser.in_header.index('Side'), 'Side', row_dict['Side'])
 
+
 def split_trading_pair(trading_pair):
     for quote_asset in QUOTE_ASSETS:
         if trading_pair.endswith(quote_asset):
             return trading_pair[:-len(quote_asset)], quote_asset
 
     return None, None
+
 
 def split_asset(amount):
     for base_asset in BASE_ASSETS:
@@ -124,6 +128,7 @@ def split_asset(amount):
     if match:
         return match.group(1), match.group(2)
     return None, ''
+
 
 def parse_binance_deposits_withdrawals_crypto(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
@@ -151,6 +156,7 @@ def parse_binance_deposits_withdrawals_crypto(data_row, _parser, **kwargs):
     else:
         raise DataFilenameError(kwargs['filename'], "Transaction Type (Deposit or Withdrawal)")
 
+
 def parse_binance_deposits_withdrawals_cash(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(row_dict['Date(UTC)'])
@@ -177,9 +183,16 @@ def parse_binance_deposits_withdrawals_cash(data_row, _parser, **kwargs):
     else:
         raise DataFilenameError(kwargs['filename'], "Transaction Type (Deposit or Withdrawal)")
 
+
 def parse_binance_statements(data_rows, parser, **_kwargs):
     tx_times = {}
     for dr in data_rows:
+        # Fix incosistent values in operation, OMG binance...
+        if dr.row_dict['Operation'] == "Buy" and Decimal(dr.row_dict['Change']) < 0.0:
+            dr.row_dict['Operation'] = "Transaction Related"
+        elif dr.row_dict['Operation'] == "Sell" and Decimal(dr.row_dict['Change']) > 0.0:
+            dr.row_dict['Operation'] = "Transaction Related"
+
         if dr.row_dict['UTC_Time'] in tx_times:
             tx_times[dr.row_dict['UTC_Time']].append(dr)
         else:
@@ -189,9 +202,11 @@ def parse_binance_statements(data_rows, parser, **_kwargs):
         if config.debug:
             sys.stderr.write("%sconv: row[%s] %s\n" % (
                 Fore.YELLOW, parser.in_header_row_num + data_row.line_num, data_row))
-
+        if data_row.parsed:
+            continue
         row_dict = data_row.row_dict
         data_row.timestamp = DataParser.parse_timestamp(row_dict['UTC_Time'])
+        data_row.parsed = True
 
         if row_dict['Operation'] in ("Commission History", "Referrer rebates", "Commission Rebate",
                                      "Commission Fee Shared With You", "Cash Voucher distribution",
@@ -240,6 +255,44 @@ def parse_binance_statements(data_rows, parser, **_kwargs):
                                        "POS savings purchase", "POS savings redemption"):
             # Skip not taxable events
             continue
+        elif row_dict['Operation'] == "Deposit":
+            data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
+                                                     data_row.timestamp,
+                                                     buy_quantity=row_dict['Change'],
+                                                     buy_asset=row_dict['Coin'],
+                                                     wallet=WALLET)
+        elif row_dict['Operation'] == "Withdraw":
+            data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
+                                                     data_row.timestamp,
+                                                     sell_quantity=abs(Decimal(row_dict['Change'])),
+                                                     sell_asset=row_dict['Coin'],
+                                                     wallet=WALLET)
+        elif row_dict['Operation'] in ["Fee", "Buy", "Buy", "Transaction Related"]:
+            items = tx_times[row_dict['UTC_Time']]
+            data_dict = {items[i].row_dict['Operation']: items[i] for i in range(0, len(items))}
+            fee = data_dict['Fee']
+            buy = data_dict.get('Buy')
+            sell = data_dict.get('Sell')
+            counter_part = data_dict['Transaction Related']
+
+            item_buy = buy if buy is not None else counter_part
+            item_sell = sell if sell is not None else counter_part
+
+            fee.parsed = True
+            item_buy.parsed = True
+            item_sell.parsed = True
+            item = buy if buy is not None else sell
+
+            item.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_TRADE,
+                                                 data_row.timestamp,
+                                                 buy_quantity=abs(Decimal(item_buy.row_dict['Change'])),
+                                                 buy_asset=item_buy.row_dict['Coin'],
+                                                 sell_quantity=abs(Decimal(item_sell.row_dict['Change'])),
+                                                 sell_asset=item_sell.row_dict['Coin'],
+                                                 fee_quantity=abs(Decimal(fee.row_dict['Change'])),
+                                                 fee_asset=fee.row_dict['Coin'],
+                                                 wallet=WALLET)
+
 
 def make_trade(operation, tx_times, default_asset=''):
     op_rows = [dr for dr in tx_times if dr.row_dict['Operation'] == operation]
@@ -258,9 +311,10 @@ def make_trade(operation, tx_times, default_asset=''):
                                                      buy_quantity=buy_quantity,
                                                      buy_asset=buy_asset,
                                                      sell_quantity=abs(Decimal(data_row. \
-                                                         row_dict['Change'])),
+                                                                               row_dict['Change'])),
                                                      sell_asset=data_row.row_dict['Coin'],
                                                      wallet=WALLET)
+
 
 def get_buy_quantity(op_rows):
     buy_found = False
@@ -290,6 +344,7 @@ def get_buy_quantity(op_rows):
         buy_asset = ''
 
     return buy_quantity, buy_asset
+
 
 DataParser(DataParser.TYPE_EXCHANGE,
            "Binance Trades",
