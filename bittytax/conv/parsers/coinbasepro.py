@@ -40,10 +40,13 @@ def parse_coinbase_pro_row(trade_ids, parser, data_row):
     data_row.parsed = True
 
     if row_dict['type'] == "withdrawal":
+        fee_quantity, fee_asset = get_trade(trade_ids[row_dict['trade id']], "fee")
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
                                                  sell_quantity=abs(Decimal(row_dict['amount'])),
                                                  sell_asset=row_dict['amount/balance unit'],
+                                                 fee_quantity=fee_quantity,
+                                                 fee_asset=fee_asset,
                                                  wallet=WALLET)
     elif row_dict['type'] == "deposit":
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
