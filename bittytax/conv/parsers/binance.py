@@ -205,7 +205,7 @@ def parse_binance_statements(data_rows, parser, **_kwargs):
         if data_row.parsed:
             continue
         row_dict = data_row.row_dict
-        data_row.timestamp = DataParser.parse_timestamp(row_dict['UTC_Time'])
+        data_row.timestamp = DataParser.parse_timestamp(row_dict['UTC_Time'], dayfirst=True)
         data_row.parsed = True
 
         if row_dict['Operation'] in ("Commission History", "Referrer rebates", "Commission Rebate",
