@@ -13,13 +13,24 @@ from ..exceptions import DataRowError, UnexpectedTypeError, MissingComponentErro
 
 WALLET = "Coinbase Pro"
 
+
 def parse_coinbase_pro(data_rows, parser, **_kwargs):
     trade_ids = {}
     for dr in data_rows:
-        if dr.row_dict['trade id'] in trade_ids:
+        if dr.row_dict['trade id'] == "":
+            continue
+        elif dr.row_dict['trade id'] in trade_ids:
             trade_ids[dr.row_dict['trade id']].append(dr)
         else:
             trade_ids[dr.row_dict['trade id']] = [dr]
+    transfer_ids = {}
+    for dr in data_rows:
+        if dr.row_dict['transfer id'] == "":
+            continue
+        elif dr.row_dict['transfer id'] in transfer_ids:
+            transfer_ids[dr.row_dict['transfer id']].append(dr)
+        else:
+            transfer_ids[dr.row_dict['transfer id']] = [dr]
 
     for data_row in data_rows:
         if config.debug:
@@ -30,17 +41,19 @@ def parse_coinbase_pro(data_rows, parser, **_kwargs):
             continue
 
         try:
-            parse_coinbase_pro_row(trade_ids, parser, data_row)
+            parse_coinbase_pro_row(trade_ids, transfer_ids, parser, data_row)
         except DataRowError as e:
             data_row.failure = e
 
-def parse_coinbase_pro_row(trade_ids, parser, data_row):
+
+def parse_coinbase_pro_row(trade_ids, transfer_ids, parser, data_row):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(row_dict['time'])
     data_row.parsed = True
 
     if row_dict['type'] == "withdrawal":
-        fee_quantity, fee_asset = get_trade(trade_ids[row_dict['trade id']], "fee")
+        context_data = trade_ids.get(row_dict['trade id']) or transfer_ids.get(row_dict['transfer id'])
+        fee_quantity, fee_asset = get_trade(context_data, "fee")
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
                                                  sell_quantity=abs(Decimal(row_dict['amount'])),
@@ -84,11 +97,12 @@ def parse_coinbase_pro_row(trade_ids, parser, data_row):
     else:
         raise UnexpectedTypeError(parser.in_header.index('type'), 'type', row_dict['type'])
 
-def get_trade(trade_id_rows, t_type):
+
+def get_trade(id_rows, t_type):
     quantity = None
     asset = ""
 
-    for data_row in trade_id_rows:
+    for data_row in id_rows:
         if not data_row.parsed and t_type == data_row.row_dict['type']:
             quantity = abs(Decimal(data_row.row_dict['amount']))
             asset = data_row.row_dict['amount/balance unit']
@@ -97,6 +111,7 @@ def get_trade(trade_id_rows, t_type):
             break
 
     return quantity, asset
+
 
 def parse_coinbase_pro_deposits_withdrawals(data_row, parser, **_kwargs):
     row_dict = data_row.row_dict
@@ -120,8 +135,10 @@ def parse_coinbase_pro_deposits_withdrawals(data_row, parser, **_kwargs):
     else:
         raise UnexpectedTypeError(parser.in_header.index('type'), 'type', row_dict['type'])
 
+
 def parse_coinbase_pro_trades_v2(data_row, parser, **kwargs):
     parse_coinbase_pro_trades_v1(data_row, parser, **kwargs)
+
 
 def parse_coinbase_pro_trades_v1(data_row, parser, **_kwargs):
     row_dict = data_row.row_dict
@@ -151,6 +168,7 @@ def parse_coinbase_pro_trades_v1(data_row, parser, **_kwargs):
                                                  wallet=WALLET)
     else:
         raise UnexpectedTypeError(parser.in_header.index('side'), 'side', row_dict['side'])
+
 
 DataParser(DataParser.TYPE_EXCHANGE,
            "Coinbase Pro",
