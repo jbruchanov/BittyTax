@@ -20,7 +20,7 @@ ALT_ASSETS = {'KFEE': 'FEE', 'XETC': 'ETC', 'XETH': 'ETH', 'XLTC': 'LTC', 'XMLN'
               'XREP': 'REP', 'XXBT': 'XBT', 'XXDG': 'XDG', 'XXLM': 'XLM', 'XXMR': 'XMR',
               'XXRP': 'XRP', 'XZEC': 'ZEC', 'ZAUD': 'AUD', 'ZCAD': 'CAD', 'ZEUR': 'EUR',
               'ZGBP': 'GBP', 'ZJPY': 'JPY', 'ZUSD': 'USD',
-              'ADA.S': 'ADA', 'DOT.S': 'DOT', 'POL.S': 'POL', 'SOL.S': 'SOL'}
+              'ADA.S': 'ADA', 'DOT.S': 'DOT', 'POL.S': 'POL', 'SOL.S': 'SOL', 'ALGO.S': 'ALGO', 'LUNA.S': 'LUNA'}
 
 ASSETS_2CHARS = ['SC']
 TRANSACTION_TYPES = {"deposit": TransactionOutRecord.TYPE_DEPOSIT,
@@ -187,6 +187,8 @@ def split_trading_pair(trading_pair):
 def normalise_asset(asset):
     if asset in ALT_ASSETS:
         asset = ALT_ASSETS.get(asset)
+
+    asset = asset.replace(".S", "")
 
     if asset == "XBT":
         return "BTC"
