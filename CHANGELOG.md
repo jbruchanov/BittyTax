@@ -20,6 +20,9 @@
 - SnowTrace parser: exclude failed internal transactions.
 - Etherscan merger: only merge transactions for the same wallet address.
 - Electrum parser: handle optional fees.
+- Accounting tool: Lost transactions create wrong cost basis. ([#247](https://github.com/BittyTax/BittyTax/issues/247))
+- Accounting tool: long notes overwrite financial data.
+- Accounting tool: GMT, BST are not the same as Europe/London. ([#251](https://github.com/BittyTax/BittyTax/issues/251))
 ### Added
 - Conversion tool: generic parser added to support import from CryptoCredible tool.
 - Conversion tool: added parser for SnowTrace explorer.
@@ -42,6 +45,8 @@
 - Conversion tool: added parser for Bitpanda exchange.
 - Conversion tool: added parser for CoinList exchange.
 - Conversion tool: added parser for Koinly accounting data.
+- Accounting tool: tax rates and allowance for 2022/23.
+- Crypto.com parser: added new export format. ([#248](https://github.com/BittyTax/BittyTax/issues/248))
 ### Changed
 - Binance parser: performance improvements for large data sets.
 - Coinbase Pro parser: performance improvements for large data sets.
