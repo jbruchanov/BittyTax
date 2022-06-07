@@ -6,7 +6,8 @@ from decimal import Decimal
 
 from ...config import config
 from ..out_record import TransactionOutRecord
-from ..exceptions import UnexpectedTypeError, UnexpectedTradingPairError, DataRowError, UnexpectedTypeError, MissingComponentError
+from ..exceptions import UnexpectedTypeError, UnexpectedTradingPairError, DataRowError, UnexpectedTypeError, \
+    MissingComponentError
 from ..dataparser import DataParser
 from colorama import Fore, Back
 
@@ -25,6 +26,7 @@ ALT_ASSETS = {'KFEE': 'FEE', 'XETC': 'ETC', 'XETH': 'ETH', 'XLTC': 'LTC', 'XMLN'
 ASSETS_2CHARS = ['SC']
 TRANSACTION_TYPES = {"deposit": TransactionOutRecord.TYPE_DEPOSIT,
                      "staking": TransactionOutRecord.TYPE_STAKING,
+                     "dividend": TransactionOutRecord.TYPE_DIVIDEND,
                      "reward": TransactionOutRecord.TYPE_STAKING}
 TRADE_TYPE_PAIR = {"trade": "trade",
                    "spend": "receive",
@@ -68,7 +70,7 @@ def parse_kraken_deposits_withdrawals(trade_ids, parser, data_row):
     tx_id = row_dict['txid']
     ref_id = row_dict['refid']
     if tx_id == "": return
-    if transaction_type in ["deposit", "staking", "reward"]:
+    if transaction_type in ["deposit", "staking", "reward", "dividend"]:
         # Check for txid to filter failed transactions
         data_row.t_record = TransactionOutRecord(TRANSACTION_TYPES[transaction_type],
                                                  data_row.timestamp,
