@@ -53,6 +53,7 @@ from . import snowtrace
 from . import tradesatoshi
 from . import trezor
 from . import trezorsuite
+from . import trezorsuite2
 from . import uphold
 from . import volt
 from . import wirex
