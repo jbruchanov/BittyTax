@@ -12,7 +12,8 @@
 
 ##
 - newly added ADALITE
-- install updated version via `pip install -e .` (run in folder with setup.py)
+- install updated version via `pip install -e .` (run in folder with setup.py, be sure python 3.9)
+- this needs VS build compomnents ![vsbuild.png](vsbuild.png)
 - `bittytax_conv -o output.xlsx *.csv`
 - `bittytax output.xlsx -ty 2021 --taxrules UK_INDIVIDUAL`
 
